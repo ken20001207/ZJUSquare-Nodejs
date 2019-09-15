@@ -1,25 +1,21 @@
-// 用于读取文件用的模块
-var fs = require('fs');
-
 var mysql = require('mysql');
 
 var conn = mysql.createConnection({
     host: '127.0.0.1',
     user: 'root',
-    password: 'Yuanlin1207!',
+    password: '123456',
     database: 'zju'
 });
 
-conn.connect(function(err) {
+conn.connect(function (err) {
     if (err) {
-        console.log(" ");
-        console.log('数据库连线失败，请检查配置。');
-        console.log(" ");
-    } else {
-        console.log(" ");
-        console.log('数据库连线成功。');
-        console.log(" ");
-    }
+        console.log("\x1b[31m%s\x1b[0m", '[严重] 数据库连线失败，请检查配置');
+        console.log("\x1b[31m%s\x1b[0m", '[严重] 错误内容：' + err.message);
+        console.log("\x1b[31m%s\x1b[0m", '[严重] 服务器初始化失败，即将关闭 ...');
+        server.close();
+    } else
+        console.log("\x1b[32m%s\x1b[0m", '[信息] 数据库连线成功。');
+
 });
 
 // 引入 express 套件
@@ -46,13 +42,10 @@ app.use(session({
     saveUninitialized: true
 }));
 
-// 用于解析 post 信息的模块
-var querystring = require('querystring');
-
 // 信息接口
-app.post('/getdata', function(req, res, next) {
+app.post('/getdata', function (req, res) {
 
-    conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.id + "';", function(err, result, fields) {
+    conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.id + "';", function (err, result) {
 
         if (err) {
             res.write("资料库连线失败");
@@ -82,9 +75,9 @@ app.post('/getdata', function(req, res, next) {
 });
 
 // 登录接口
-app.post('/login', function(req, res, next) {
+app.post('/login', function (req, res) {
 
-    conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.id + "' AND `pwd_md5`='" + req.body.pwd_md5 + "';", function(err, result, fields) {
+    conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.id + "' AND `pwd_md5`='" + req.body.pwd_md5 + "';", function (err, result) {
 
         if (err) {
             res.write("0:dbconnecterror");
@@ -94,7 +87,11 @@ app.post('/login', function(req, res, next) {
             res.end();
         } else {
 
-            conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.id + "';", function(err, result, fields) {
+            conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.id + "';", function (err, result) {
+
+                if (err)
+                    console.log("\x1b[31m", '[严重] 自数据库获取使用者资料数据时发生未预期的错误');
+
 
                 res.write(req.body.id);
                 req.session.user = req.body.id;
@@ -113,10 +110,8 @@ app.post('/login', function(req, res, next) {
 });
 
 // 登出接口
-app.post('/logout', function(req, res, next) {
-    console.log(" ");
-    console.log("# 使用者 " + req.session.user_name + "（" + req.session.user_id + "） 登出了聊天广场服务。 #");
-    console.log(" ");
+app.post('/logout', function (req, res) {
+    console.log("\x1b[33m%s\x1b[0m", "[信息] 使用者 " + req.session.user_name + "（" + req.session.user_id + "） 登出了聊天广场服务");
     req.session.destroy();
     res.write("1");
     res.end();
@@ -126,9 +121,13 @@ app.post('/logout', function(req, res, next) {
 app.set('view engine', 'ejs');
 
 // 取得聊天记录
-app.post('/getchat', function(req, res) {
-    conn.query("SELECT * FROM `message` WHERE `channel`='" + req.body.channel + "' ORDER BY `time`;", function(err, result, fields) {
-        Object.keys(result).forEach(function(key) {
+app.post('/getchat', function (req, res) {
+    conn.query("SELECT * FROM `message` WHERE `channel`='" + req.body.channel + "' ORDER BY `time`;", function (err, result) {
+
+        if (err)
+            console.log("\x1b[31m%s\x1b[0m", '[严重] 自资料库取得聊天记录时发生未预期的错误');
+
+        Object.keys(result).forEach(function (key) {
             var row = result[key];
             res.write("<div style=\"margin-left: 30px\"><p style=\"padding:5px 15px 5px 15px;display: inline-block; background-color:white; border-radius:20px; max-width: 60%\"><a style=\"font-size:6px; color:gray\">" + row.name + " - " + row.time + " </a> <br> " + row.msg + "</p></div>");
         });
@@ -137,8 +136,12 @@ app.post('/getchat', function(req, res) {
 });
 
 // 取得聊天室列表
-app.post('/getchannellist', function(req, res) {
-    conn.query("SELECT DISTINCT `channel` FROM `message`", function(err, result, fields) {
+app.post('/getchannellist', function (req, res) {
+    conn.query("SELECT DISTINCT `channel` FROM `message`", function (err, result) {
+
+        if (err)
+            console.log("\x1b[31m%s\x1b[0m", '[严重] 自资料库取得聊天频道列表时发生未预期的错误');
+
 
         if (req.body.channel == "聊天大广场") {
             res.write("<tr><td><h3 id=\"聊天大广场\" onclick=\"changechannel('聊天大广场')\" style=\"margin: 20px; font-size: 20px; cursor: pointer;color:brown;\">聊天大广场</h3></td></tr>");
@@ -146,7 +149,7 @@ app.post('/getchannellist', function(req, res) {
             res.write("<tr><td><h3 id=\"聊天大广场\" onclick=\"changechannel('聊天大广场')\" style=\"margin: 20px; font-size: 20px; cursor: pointer;\">聊天大广场</h3></td></tr>");
         }
 
-        Object.keys(result).forEach(function(key) {
+        Object.keys(result).forEach(function (key) {
             var row = result[key];
             if (row.channel != "聊天大广场") {
                 if (row.channel == req.body.channel) {
@@ -162,8 +165,8 @@ app.post('/getchannellist', function(req, res) {
 });
 
 // 发送讯息
-app.post("/sendmsg", function(req, res) {
-    conn.query("INSERT INTO `message` (`name`,`channel`,`msg`,`time`) VALUES ('" + req.body.msg_name + "','" + req.body.msg_channel + "','" + req.body.msg + "','" + getDateTime() + "');", function(err, result, fields) {
+app.post("/sendmsg", function (req, res) {
+    conn.query("INSERT INTO `message` (`name`,`channel`,`msg`,`time`) VALUES ('" + req.body.msg_name + "','" + req.body.msg_channel + "','" + req.body.msg + "','" + getDateTime() + "');", function () {
         res.write("1");
         res.end();
     });
@@ -173,12 +176,10 @@ app.post("/sendmsg", function(req, res) {
 app.use(express.static('static'));
 
 // 显示网站画面
-app.get("/", function(req, res) {
+app.get("/", function (req, res) {
 
     if (req.session.user) {
-        console.log(" ");
-        console.log("# 使用者 " + req.session.user_name + "（" + req.session.user_id + "） 登入了聊天广场服务。 #");
-        console.log(" ");
+        console.log("\x1b[33m%s\x1b[0m", "[信息] 使用者 " + req.session.user_name + "（" + req.session.user_id + "） 登入了聊天广场服务");
         res.render("mainpage", {
             islogin: true,
             id: req.session.user_id,
@@ -198,9 +199,9 @@ app.get("/", function(req, res) {
 });
 
 // 注册账号
-app.post("/register", function(req, res) {
+app.post("/register", function (req, res) {
 
-    conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.reg_id + "';", function(err, result, fields) {
+    conn.query("SELECT * FROM `users` WHERE `id`='" + req.body.reg_id + "';", function (err, result) {
         if (err) {
             res.write("0:dbconnecterror");
             res.end();
@@ -210,7 +211,7 @@ app.post("/register", function(req, res) {
             res.end();
             return;
         } else {
-            conn.query("SELECT * FROM `users` WHERE `schoolnumber`='" + req.body.reg_schoolnumber + "';", function(err, result, fields) {
+            conn.query("SELECT * FROM `users` WHERE `schoolnumber`='" + req.body.reg_schoolnumber + "';", function (err, result) {
                 if (err) {
                     res.write("0:dbconnecterror");
                     res.end();
@@ -220,9 +221,7 @@ app.post("/register", function(req, res) {
                     res.end();
                     return;
                 } else {
-                    console.log(" ");
-                    console.log("# 新使用者 " + req.body.reg_name + "（" + req.body.reg_id + "） 注册了聊天广场服务。 #");
-                    console.log(" ");
+                    console.log("\x1b[32m%s\x1b[0m", "[信息] 新使用者 " + req.body.reg_name + "（" + req.body.reg_id + "） 注册了聊天广场服务");
                     conn.query("INSERT INTO `users` (`name`,`schoolnumber`,`email`,`gender`,`id`,`pwd`,`pwd_md5`) VALUES ('" + req.body.reg_name + "','" + req.body.reg_schoolnumber + "', '" + req.body.reg_email + "', '" + req.body.reg_gender + "','" + req.body.reg_id + "', '" + req.body.reg_pwd + "', '" + req.body.reg_pwd_md5 + "');");
                     res.write("1");
                     res.end();
@@ -233,10 +232,8 @@ app.post("/register", function(req, res) {
 });
 
 // 建立连线服务器
-app.listen(80, function() {
-    console.log(" ");
-    console.log("# 浙江大学聊天广场服务现已开放连线于 http://localhost （本服务器）！ #");
-    console.log(" ");
+var server = app.listen(80, function () {
+    console.log("\x1b[32m%s\x1b[0m", "[信息] 浙江大学聊天广场服务现已开放连线于 http://localhost/ ");
 });
 
 // 用于取得当前时间的 function
